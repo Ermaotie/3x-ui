@@ -73,6 +73,7 @@ func initModels() error {
 		&model.ApiToken{},
 		&model.ClientRecord{},
 		&model.ClientInbound{},
+		&model.FaucetClaim{},
 		&model.ClientExternalLink{},
 		&model.ClientGroup{},
 		&model.InboundFallback{},

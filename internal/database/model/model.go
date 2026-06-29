@@ -697,6 +697,17 @@ type ClientInbound struct {
 
 func (ClientInbound) TableName() string { return "client_inbounds" }
 
+type FaucetClaim struct {
+	Id          int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	TokenHash   string `json:"tokenHash" gorm:"uniqueIndex;not null;column:token_hash"`
+	IPHash      string `json:"ipHash" gorm:"index;column:ip_hash"`
+	ClientEmail string `json:"clientEmail" gorm:"index;not null;column:client_email"`
+	CreatedAt   int64  `json:"createdAt" gorm:"autoCreateTime:milli"`
+	ExpiresAt   int64  `json:"expiresAt" gorm:"index;column:expires_at"`
+}
+
+func (FaucetClaim) TableName() string { return "faucet_claims" }
+
 // ClientExternalLink is a per-client entry surfaced in the client's
 // subscription. Two kinds:
 //   - "link": a single third-party share link (vless://, vmess://, trojan://,

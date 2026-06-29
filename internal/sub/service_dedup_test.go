@@ -95,3 +95,17 @@ func TestMatchingClients_DedupsCaseInsensitiveEmail(t *testing.T) {
 		t.Fatalf("non-matching subId must yield 0 clients, got %d", len(other))
 	}
 }
+
+func TestMatchingClientsRejectsEmptySubID(t *testing.T) {
+	const uuid = "11111111-2222-4333-8444-555555555555"
+	ib := &model.Inbound{
+		Protocol: model.VLESS,
+		Settings: `{"clients":[
+			{"id":"` + uuid + `","email":"faucet@example.com","subId":"","enable":true}
+		]}`,
+	}
+	s := &SubService{}
+	if got := s.matchingClients(ib, ""); len(got) != 0 {
+		t.Fatalf("empty subId must not match empty client SubID, got %d", len(got))
+	}
+}

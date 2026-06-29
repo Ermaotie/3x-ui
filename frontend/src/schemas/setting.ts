@@ -64,6 +64,19 @@ export const AllSettingSchema = z.object({
   subJsonRules: z.string().optional(),
   subJsonFinalMask: z.string().optional(),
   subHideSettings: z.boolean().optional(),
+  faucetEnable: z.boolean().optional(),
+  faucetDomain: z.string().optional(),
+  faucetPath: absolutePath.optional(),
+  faucetInboundIds: z.string().optional(),
+  faucetClientFlow: z.string().optional(),
+  faucetTrafficMB: z.number().int().min(1).optional(),
+  faucetExpireHours: z.number().int().min(1).optional(),
+  faucetLimitIP: nonNegativeInt.optional(),
+  faucetIpCooldownMinutes: nonNegativeInt.optional(),
+  faucetIpDailyLimit: nonNegativeInt.optional(),
+  faucetGlobalDailyLimit: nonNegativeInt.optional(),
+  faucetTurnstileSiteKey: z.string().optional(),
+  faucetTurnstileSecret: z.string().optional(),
   timeLocation: z.string().optional(),
   ldapEnable: z.boolean().optional(),
   ldapHost: z.string().optional(),
@@ -93,6 +106,7 @@ export const AllSettingSchema = z.object({
   hasWarpSecret: z.boolean().optional(),
   hasNordSecret: z.boolean().optional(),
   hasSmtpPassword: z.boolean().optional(),
+  hasFaucetTurnstileSecret: z.boolean().optional(),
 }).loose();
 
 export type AllSettingInput = z.infer<typeof AllSettingSchema>;

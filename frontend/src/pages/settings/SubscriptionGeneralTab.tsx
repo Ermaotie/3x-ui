@@ -1,10 +1,12 @@
-import { Input, InputNumber, Switch, Tabs } from 'antd';
-import { BranchesOutlined, CompassOutlined, IdcardOutlined, InfoCircleOutlined, NodeIndexOutlined, SafetyCertificateOutlined, SettingOutlined } from '@ant-design/icons';
+import { useMemo } from 'react';
+import { Input, InputNumber, Select, Switch, Tabs } from 'antd';
+import { BranchesOutlined, CompassOutlined, GiftOutlined, IdcardOutlined, InfoCircleOutlined, NodeIndexOutlined, SafetyCertificateOutlined, SettingOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { AllSetting } from '@/models/setting';
 import { SettingListItem } from '@/components/ui';
 import { RemarkTemplateField } from '@/components/form';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useInboundOptions } from '@/api/queries/useInboundOptions';
 import { catTabLabel } from './catTabLabel';
 import { sanitizePath, normalizePath } from './uriPath';
 
@@ -16,6 +18,18 @@ interface SubscriptionGeneralTabProps {
 export default function SubscriptionGeneralTab({ allSetting, updateSetting }: SubscriptionGeneralTabProps) {
   const { t } = useTranslation();
   const { isMobile } = useMediaQuery();
+  const { data: inboundOptions = [] } = useInboundOptions();
+  const faucetInboundIds = useMemo(
+    () => allSetting.faucetInboundIds.split(',').map((id) => Number(id.trim())).filter((id) => Number.isInteger(id) && id > 0),
+    [allSetting.faucetInboundIds],
+  );
+  const faucetInboundOptions = useMemo(
+    () => inboundOptions.map((ib) => ({
+      value: ib.id,
+      label: `${ib.remark || ib.tag || `#${ib.id}`} (${ib.protocol || '-'}/${ib.port || '-'})`,
+    })),
+    [inboundOptions],
+  );
 
   return (
     <Tabs defaultActiveKey="1" items={[
@@ -143,6 +157,88 @@ export default function SubscriptionGeneralTab({ allSetting, updateSetting }: Su
       },
       {
         key: '5',
+        label: catTabLabel(<GiftOutlined />, 'Faucet', isMobile),
+        children: (
+          <>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetEnable')} description={t('pages.settings.faucetEnableDesc')}>
+              <Switch checked={allSetting.faucetEnable} onChange={(v) => updateSetting({ faucetEnable: v })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetDomain')} description={t('pages.settings.faucetDomainDesc')}>
+              <Input value={allSetting.faucetDomain} onChange={(e) => updateSetting({ faucetDomain: e.target.value })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.subPort')} description={t('pages.settings.subPortDesc')}>
+              <InputNumber value={allSetting.subPort} min={1} max={65535} style={{ width: '100%' }}
+                onChange={(v) => updateSetting({ subPort: Number(v) || 0 })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetPath')} description={t('pages.settings.faucetPathDesc')}>
+              <Input
+                value={allSetting.faucetPath}
+                placeholder="/faucet/"
+                onChange={(e) => updateSetting({ faucetPath: sanitizePath(e.target.value) })}
+                onBlur={() => updateSetting({ faucetPath: normalizePath(allSetting.faucetPath) })}
+              />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetInboundIds')} description={t('pages.settings.faucetInboundIdsDesc')}>
+              <Select
+                mode="multiple"
+                allowClear
+                value={faucetInboundIds}
+                options={faucetInboundOptions}
+                optionFilterProp="label"
+                onChange={(ids) => updateSetting({ faucetInboundIds: ids.join(',') })}
+                style={{ width: '100%' }}
+              />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetClientFlow')} description={t('pages.settings.faucetClientFlowDesc')}>
+              <Select
+                value={allSetting.faucetClientFlow}
+                options={[
+                  { value: '', label: t('pages.settings.faucetClientFlowNone') },
+                  { value: 'xtls-rprx-vision', label: 'xtls-rprx-vision' },
+                ]}
+                onChange={(v) => updateSetting({ faucetClientFlow: v })}
+                style={{ width: '100%' }}
+              />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetTrafficMB')} description={t('pages.settings.faucetTrafficMBDesc')}>
+              <InputNumber value={allSetting.faucetTrafficMB} min={1} style={{ width: '100%' }}
+                onChange={(v) => updateSetting({ faucetTrafficMB: Number(v) || 1 })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetExpireHours')} description={t('pages.settings.faucetExpireHoursDesc')}>
+              <InputNumber value={allSetting.faucetExpireHours} min={1} style={{ width: '100%' }}
+                onChange={(v) => updateSetting({ faucetExpireHours: Number(v) || 24 })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetLimitIP')} description={t('pages.settings.faucetLimitIPDesc')}>
+              <InputNumber value={allSetting.faucetLimitIP} min={0} style={{ width: '100%' }}
+                onChange={(v) => updateSetting({ faucetLimitIP: Number(v) || 0 })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetIpCooldownMinutes')} description={t('pages.settings.faucetIpCooldownMinutesDesc')}>
+              <InputNumber value={allSetting.faucetIpCooldownMinutes} min={0} style={{ width: '100%' }}
+                onChange={(v) => updateSetting({ faucetIpCooldownMinutes: Number(v) || 0 })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetIpDailyLimit')} description={t('pages.settings.faucetIpDailyLimitDesc')}>
+              <InputNumber value={allSetting.faucetIpDailyLimit} min={0} style={{ width: '100%' }}
+                onChange={(v) => updateSetting({ faucetIpDailyLimit: Number(v) || 0 })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetGlobalDailyLimit')} description={t('pages.settings.faucetGlobalDailyLimitDesc')}>
+              <InputNumber value={allSetting.faucetGlobalDailyLimit} min={0} style={{ width: '100%' }}
+                onChange={(v) => updateSetting({ faucetGlobalDailyLimit: Number(v) || 0 })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetTurnstileSiteKey')} description={t('pages.settings.faucetTurnstileSiteKeyDesc')}>
+              <Input value={allSetting.faucetTurnstileSiteKey} onChange={(e) => updateSetting({ faucetTurnstileSiteKey: e.target.value })} />
+            </SettingListItem>
+            <SettingListItem paddings="small" title={t('pages.settings.faucetTurnstileSecret')} description={t('pages.settings.faucetTurnstileSecretDesc')}>
+              <Input.Password
+                value={allSetting.faucetTurnstileSecret}
+                placeholder={allSetting.hasFaucetTurnstileSecret ? t('pages.settings.faucetTurnstileSecretConfigured') : ''}
+                onChange={(e) => updateSetting({ faucetTurnstileSecret: e.target.value })}
+              />
+            </SettingListItem>
+          </>
+        ),
+      },
+      {
+        key: '6',
         label: catTabLabel(<BranchesOutlined />, 'Happ', isMobile),
         children: (
           <>
@@ -160,7 +256,7 @@ export default function SubscriptionGeneralTab({ allSetting, updateSetting }: Su
         ),
       },
       {
-        key: '6',
+        key: '7',
         label: catTabLabel(<NodeIndexOutlined />, 'Clash / Mihomo', isMobile),
         children: (
           <>
@@ -179,7 +275,7 @@ export default function SubscriptionGeneralTab({ allSetting, updateSetting }: Su
         ),
       },
       {
-        key: '7',
+        key: '8',
         label: catTabLabel(<CompassOutlined />, 'Incy', isMobile),
         children: (
           <>

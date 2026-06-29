@@ -152,6 +152,9 @@ func listenIsInternalOnly(listen string) bool {
 // output (#5134). Link generation keys purely on (inbound, email), so
 // same-email entries are pure duplicates and dropping them is lossless.
 func (s *SubService) matchingClients(inbound *model.Inbound, subId string) []model.Client {
+	if strings.TrimSpace(subId) == "" {
+		return nil
+	}
 	clients, err := s.inboundService.GetClients(inbound)
 	if err != nil {
 		logger.Error("SubService - GetClients: Unable to get clients from inbound")
@@ -183,6 +186,9 @@ func (s *SubService) getSubs(subId string) ([]string, []string, int64, xray.Clie
 	var emails []string
 	var traffic xray.ClientTraffic
 	var hasEnabledClient bool
+	if strings.TrimSpace(subId) == "" {
+		return nil, nil, 0, traffic, nil
+	}
 	inbounds, err := s.getInboundsBySubId(subId)
 	if err != nil {
 		return nil, nil, 0, traffic, err
@@ -360,6 +366,9 @@ func subscriptionExpiryFromClient(nowMs, expiryTime int64) int64 {
 }
 
 func (s *SubService) getInboundsBySubId(subId string) ([]*model.Inbound, error) {
+	if strings.TrimSpace(subId) == "" {
+		return nil, nil
+	}
 	db := database.GetDB()
 	var inbounds []*model.Inbound
 	err := db.Model(model.Inbound{}).Preload("ClientStats").Where(`id in (

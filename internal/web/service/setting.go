@@ -102,6 +102,20 @@ var defaultValueMap = map[string]string{
 	"subJsonRules":                "",
 	"subJsonFinalMask":            "",
 	"subThemeDir":                 "",
+	"faucetEnable":                "false",
+	"faucetDomain":                "",
+	"faucetPath":                  "/faucet/",
+	"faucetInboundIds":            "",
+	"faucetClientFlow":            "",
+	"faucetTrafficMB":             "1024",
+	"faucetTrafficGB":             "1",
+	"faucetExpireHours":           "24",
+	"faucetLimitIP":               "1",
+	"faucetIpCooldownMinutes":     "0",
+	"faucetIpDailyLimit":          "0",
+	"faucetGlobalDailyLimit":      "0",
+	"faucetTurnstileSiteKey":      "",
+	"faucetTurnstileSecret":       "",
 	"datepicker":                  "gregorian",
 	"warp":                        "",
 	"warpUpdateInterval":          "0",
@@ -227,6 +241,18 @@ func (s *SettingService) GetAllSetting() (*entity.AllSetting, error) {
 		keyMap[setting.Key] = true
 	}
 
+	if !keyMap["faucetTrafficMB"] && keyMap["faucetTrafficGB"] {
+		trafficMB, err := faucetTrafficGBSettingToMB(settings)
+		if err != nil {
+			return nil, err
+		}
+		err = setSetting("faucetTrafficMB", strconv.Itoa(trafficMB))
+		if err != nil {
+			return nil, err
+		}
+		keyMap["faucetTrafficMB"] = true
+	}
+
 	for key, value := range defaultValueMap {
 		if keyMap[key] {
 			continue
@@ -238,6 +264,23 @@ func (s *SettingService) GetAllSetting() (*entity.AllSetting, error) {
 	}
 
 	return allSetting, nil
+}
+
+func faucetTrafficGBSettingToMB(settings []*model.Setting) (int, error) {
+	for _, setting := range settings {
+		if setting.Key != "faucetTrafficGB" {
+			continue
+		}
+		gb, err := strconv.Atoi(effectiveSettingValue("faucetTrafficGB", setting.Value))
+		if err != nil {
+			return 0, err
+		}
+		if gb <= 0 {
+			return 1024, nil
+		}
+		return gb * 1024, nil
+	}
+	return 1024, nil
 }
 
 func (s *SettingService) GetAllSettingView() (*entity.AllSettingView, error) {
@@ -252,6 +295,7 @@ func (s *SettingService) GetAllSettingView() (*entity.AllSettingView, error) {
 	view.HasWarpSecret = secretConfigured(mustString(s.GetWarp()))
 	view.HasNordSecret = secretConfigured(mustString(s.GetNord()))
 	view.HasSmtpPassword = secretConfigured(allSetting.SmtpPassword)
+	view.HasFaucetTurnstileSecret = secretConfigured(allSetting.FaucetTurnstileSecret)
 	var apiTokenCount int64
 	if err := database.GetDB().Model(model.ApiToken{}).Where("enabled = ?", true).Count(&apiTokenCount).Error; err == nil {
 		view.HasApiToken = apiTokenCount > 0
@@ -260,6 +304,7 @@ func (s *SettingService) GetAllSettingView() (*entity.AllSettingView, error) {
 	view.TwoFactorToken = ""
 	view.LdapPassword = ""
 	view.SmtpPassword = ""
+	view.FaucetTurnstileSecret = ""
 	return view, nil
 }
 
@@ -833,6 +878,79 @@ func (s *SettingService) GetSubThemeDir() (string, error) {
 	return s.getString("subThemeDir")
 }
 
+func (s *SettingService) GetFaucetEnable() (bool, error) {
+	return s.getBool("faucetEnable")
+}
+
+func (s *SettingService) GetFaucetDomain() (string, error) {
+	return s.getString("faucetDomain")
+}
+
+func (s *SettingService) GetFaucetPath() (string, error) {
+	return s.getString("faucetPath")
+}
+
+func (s *SettingService) GetFaucetInboundIds() (string, error) {
+	return s.getString("faucetInboundIds")
+}
+
+func (s *SettingService) GetFaucetClientFlow() (string, error) {
+	return s.getString("faucetClientFlow")
+}
+
+func (s *SettingService) GetFaucetTrafficMB() (int, error) {
+	setting, err := s.getSetting("faucetTrafficMB")
+	if err == nil {
+		return strconv.Atoi(effectiveSettingValue("faucetTrafficMB", setting.Value))
+	}
+	if err != nil && !database.IsNotFound(err) {
+		return 0, err
+	}
+
+	legacy, err := s.getSetting("faucetTrafficGB")
+	if err == nil {
+		gb, err := strconv.Atoi(effectiveSettingValue("faucetTrafficGB", legacy.Value))
+		if err != nil {
+			return 0, err
+		}
+		if gb > 0 {
+			return gb * 1024, nil
+		}
+	}
+	if err != nil && !database.IsNotFound(err) {
+		return 0, err
+	}
+	return s.getInt("faucetTrafficMB")
+}
+
+func (s *SettingService) GetFaucetExpireHours() (int, error) {
+	return s.getInt("faucetExpireHours")
+}
+
+func (s *SettingService) GetFaucetLimitIP() (int, error) {
+	return s.getInt("faucetLimitIP")
+}
+
+func (s *SettingService) GetFaucetIpCooldownMinutes() (int, error) {
+	return s.getInt("faucetIpCooldownMinutes")
+}
+
+func (s *SettingService) GetFaucetIpDailyLimit() (int, error) {
+	return s.getInt("faucetIpDailyLimit")
+}
+
+func (s *SettingService) GetFaucetGlobalDailyLimit() (int, error) {
+	return s.getInt("faucetGlobalDailyLimit")
+}
+
+func (s *SettingService) GetFaucetTurnstileSiteKey() (string, error) {
+	return s.getString("faucetTurnstileSiteKey")
+}
+
+func (s *SettingService) GetFaucetTurnstileSecret() (string, error) {
+	return s.getString("faucetTurnstileSecret")
+}
+
 func (s *SettingService) GetDatepicker() (string, error) {
 	return s.getString("datepicker")
 }
@@ -1159,6 +1277,13 @@ func (s *SettingService) preserveRedactedSecrets(allSetting *entity.AllSetting) 
 		}
 		allSetting.SmtpPassword = value
 	}
+	if strings.TrimSpace(allSetting.FaucetTurnstileSecret) == "" {
+		value, err := s.GetFaucetTurnstileSecret()
+		if err != nil {
+			return err
+		}
+		allSetting.FaucetTurnstileSecret = value
+	}
 	return nil
 }
 
@@ -1182,7 +1307,7 @@ func validateSettingsURLs(allSetting *entity.AllSetting) error {
 
 func (s *SettingService) UpdateSecret(key string, value string) error {
 	switch key {
-	case "tgBotToken", "ldapPassword", "twoFactorToken":
+	case "tgBotToken", "ldapPassword", "twoFactorToken", "faucetTurnstileSecret":
 		return s.saveSetting(key, strings.TrimSpace(value))
 	default:
 		return common.NewError("secret key is not replaceable:", key)

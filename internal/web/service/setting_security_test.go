@@ -94,6 +94,25 @@ func TestUpdateAllSettingPreservesRedactedSecrets(t *testing.T) {
 	}
 }
 
+func TestFaucetTrafficLegacyGBIsShownAsMB(t *testing.T) {
+	setupSettingTestDB(t)
+	s := &SettingService{}
+	if err := s.saveSetting("faucetTrafficGB", "2"); err != nil {
+		t.Fatal(err)
+	}
+
+	all, err := s.GetAllSetting()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if all.FaucetTrafficMB != 2048 {
+		t.Fatalf("FaucetTrafficMB = %d, want 2048", all.FaucetTrafficMB)
+	}
+	if got, err := s.GetFaucetTrafficMB(); err != nil || got != 2048 {
+		t.Fatalf("GetFaucetTrafficMB = %d, %v; want 2048, nil", got, err)
+	}
+}
+
 func TestSanitizePublicHTTPURLBlocksPrivateAddressUnlessAllowed(t *testing.T) {
 	if _, err := SanitizePublicHTTPURL("http://127.0.0.1:8080/hook", false); err == nil {
 		t.Fatal("expected localhost URL to be blocked")

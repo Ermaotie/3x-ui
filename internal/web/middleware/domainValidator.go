@@ -14,18 +14,24 @@ import (
 // It extracts the host from the request, strips any port number, and compares it
 // against the configured domain. Requests from unauthorized domains are rejected
 // with HTTP 403 Forbidden status.
-func DomainValidatorMiddleware(domain string) gin.HandlerFunc {
+func DomainValidatorMiddleware(domains ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		host := c.Request.Host
 		if colonIndex := strings.LastIndex(host, ":"); colonIndex != -1 {
 			host, _, _ = net.SplitHostPort(c.Request.Host)
 		}
 
-		if host != domain {
-			c.AbortWithStatus(http.StatusForbidden)
-			return
+		for _, domain := range domains {
+			domain = strings.TrimSpace(domain)
+			if domain == "" {
+				continue
+			}
+			if host == domain {
+				c.Next()
+				return
+			}
 		}
 
-		c.Next()
+		c.AbortWithStatus(http.StatusForbidden)
 	}
 }

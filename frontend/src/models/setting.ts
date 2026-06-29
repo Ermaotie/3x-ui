@@ -61,6 +61,19 @@ export class AllSetting {
   subJsonFinalMask = '';
   subThemeDir = '';
   subHideSettings = false;
+  faucetEnable = false;
+  faucetDomain = '';
+  faucetPath = '/faucet/';
+  faucetInboundIds = '';
+  faucetClientFlow = '';
+  faucetTrafficMB = 1024;
+  faucetExpireHours = 24;
+  faucetLimitIP = 1;
+  faucetIpCooldownMinutes = 0;
+  faucetIpDailyLimit = 0;
+  faucetGlobalDailyLimit = 0;
+  faucetTurnstileSiteKey = '';
+  faucetTurnstileSecret = '';
 
   timeLocation = 'Local';
 
@@ -103,6 +116,7 @@ export class AllSetting {
   hasWarpSecret = false;
   hasNordSecret = false;
   hasSmtpPassword = false;
+  hasFaucetTurnstileSecret = false;
 
   constructor(data?: unknown) {
     if (data != null) {

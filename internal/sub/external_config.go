@@ -34,6 +34,9 @@ type expandedLink struct {
 // client that carries the given subId, in stable order. Stays inside
 // internal/sub + database + util/link — no dependency on the panel service layer.
 func (s *SubService) getClientExternalLinksBySubId(subId string) ([]externalLinkEntry, error) {
+	if strings.TrimSpace(subId) == "" {
+		return nil, nil
+	}
 	db := database.GetDB()
 	var recs []model.ClientRecord
 	if err := db.Where("sub_id = ?", subId).Find(&recs).Error; err != nil {

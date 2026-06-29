@@ -103,6 +103,19 @@ type AllSetting struct {
 	SubJsonFinalMask            string `json:"subJsonFinalMask" form:"subJsonFinalMask"` // JSON subscription global finalmask (tcp/udp masks + quicParams)
 	SubThemeDir                 string `json:"subThemeDir" form:"subThemeDir"`           // Absolute path to a folder containing a custom subscription page template
 	SubHideSettings             bool   `json:"subHideSettings" form:"subHideSettings"`   // Hide server settings in happ subscription (Only for Happ)
+	FaucetEnable                bool   `json:"faucetEnable" form:"faucetEnable"`
+	FaucetDomain                string `json:"faucetDomain" form:"faucetDomain"`
+	FaucetPath                  string `json:"faucetPath" form:"faucetPath"`
+	FaucetInboundIds            string `json:"faucetInboundIds" form:"faucetInboundIds"`
+	FaucetClientFlow            string `json:"faucetClientFlow" form:"faucetClientFlow"`
+	FaucetTrafficMB             int    `json:"faucetTrafficMB" form:"faucetTrafficMB" validate:"gte=0"`
+	FaucetExpireHours           int    `json:"faucetExpireHours" form:"faucetExpireHours" validate:"gte=0"`
+	FaucetLimitIP               int    `json:"faucetLimitIP" form:"faucetLimitIP" validate:"gte=0"`
+	FaucetIpCooldownMinutes     int    `json:"faucetIpCooldownMinutes" form:"faucetIpCooldownMinutes" validate:"gte=0"`
+	FaucetIpDailyLimit          int    `json:"faucetIpDailyLimit" form:"faucetIpDailyLimit" validate:"gte=0"`
+	FaucetGlobalDailyLimit      int    `json:"faucetGlobalDailyLimit" form:"faucetGlobalDailyLimit" validate:"gte=0"`
+	FaucetTurnstileSiteKey      string `json:"faucetTurnstileSiteKey" form:"faucetTurnstileSiteKey"`
+	FaucetTurnstileSecret       string `json:"faucetTurnstileSecret" form:"faucetTurnstileSecret"`
 
 	// LDAP settings
 	LdapEnable             bool   `json:"ldapEnable" form:"ldapEnable"`
@@ -139,13 +152,14 @@ type AllSetting struct {
 type AllSettingView struct {
 	AllSetting
 
-	HasTgBotToken     bool `json:"hasTgBotToken"`
-	HasTwoFactorToken bool `json:"hasTwoFactorToken"`
-	HasLdapPassword   bool `json:"hasLdapPassword"`
-	HasApiToken       bool `json:"hasApiToken"`
-	HasWarpSecret     bool `json:"hasWarpSecret"`
-	HasNordSecret     bool `json:"hasNordSecret"`
-	HasSmtpPassword   bool `json:"hasSmtpPassword"`
+	HasTgBotToken            bool `json:"hasTgBotToken"`
+	HasTwoFactorToken        bool `json:"hasTwoFactorToken"`
+	HasLdapPassword          bool `json:"hasLdapPassword"`
+	HasApiToken              bool `json:"hasApiToken"`
+	HasWarpSecret            bool `json:"hasWarpSecret"`
+	HasNordSecret            bool `json:"hasNordSecret"`
+	HasSmtpPassword          bool `json:"hasSmtpPassword"`
+	HasFaucetTurnstileSecret bool `json:"hasFaucetTurnstileSecret"`
 }
 
 // CheckValid validates all settings in the AllSetting struct, checking IP addresses, ports, SSL certificates, and other configuration values.
@@ -207,6 +221,7 @@ func (s *AllSetting) CheckValid() error {
 		{"subscription path", s.SubPath},
 		{"subscription JSON path", s.SubJsonPath},
 		{"subscription Clash path", s.SubClashPath},
+		{"faucet path", s.FaucetPath},
 	} {
 		if pathHasForbiddenChar(p.value) {
 			return common.NewError("URI path contains an invalid character:", p.name)
@@ -238,6 +253,12 @@ func (s *AllSetting) CheckValid() error {
 	}
 	if !strings.HasSuffix(s.SubClashPath, "/") {
 		s.SubClashPath += "/"
+	}
+	if !strings.HasPrefix(s.FaucetPath, "/") {
+		s.FaucetPath = "/" + s.FaucetPath
+	}
+	if !strings.HasSuffix(s.FaucetPath, "/") {
+		s.FaucetPath += "/"
 	}
 
 	for cidr := range strings.SplitSeq(s.TrustedProxyCIDRs, ",") {

@@ -43,6 +43,14 @@ func validateClientSubID(subID string) error {
 }
 
 func (s *ClientService) Create(inboundSvc *InboundService, payload *ClientCreatePayload) (bool, error) {
+	return s.create(inboundSvc, payload, clientCreateOptions{})
+}
+
+func (s *ClientService) CreateFaucet(inboundSvc *InboundService, payload *ClientCreatePayload) (bool, error) {
+	return s.create(inboundSvc, payload, clientCreateOptions{preserveEmptySubID: true})
+}
+
+func (s *ClientService) create(inboundSvc *InboundService, payload *ClientCreatePayload, opts clientCreateOptions) (bool, error) {
 	if payload == nil {
 		return false, common.NewError("empty payload")
 	}
@@ -60,7 +68,7 @@ func (s *ClientService) Create(inboundSvc *InboundService, payload *ClientCreate
 		return false, common.NewError("at least one inbound is required")
 	}
 
-	if client.SubID == "" {
+	if client.SubID == "" && !opts.preserveEmptySubID {
 		client.SubID = uuid.NewString()
 	}
 	if !client.Enable {
@@ -79,6 +87,9 @@ func (s *ClientService) Create(inboundSvc *InboundService, payload *ClientCreate
 	}
 	emailTaken := !errors.Is(err, gorm.ErrRecordNotFound)
 	if emailTaken {
+		if opts.preserveEmptySubID {
+			return false, common.NewError("email already in use:", client.Email)
+		}
 		if existing.SubID == "" || existing.SubID != client.SubID {
 			return false, common.NewError("email already in use:", client.Email)
 		}
@@ -109,10 +120,10 @@ func (s *ClientService) Create(inboundSvc *InboundService, payload *ClientCreate
 		if mErr != nil {
 			return needRestart, mErr
 		}
-		nr, addErr := s.AddInboundClient(inboundSvc, &model.Inbound{
+		nr, addErr := s.addInboundClientWithOptions(inboundSvc, &model.Inbound{
 			Id:       ibId,
 			Settings: string(settingsPayload),
-		})
+		}, nil, addInboundClientOptions{preserveEmptySubID: opts.preserveEmptySubID})
 		if addErr != nil {
 			return needRestart, addErr
 		}

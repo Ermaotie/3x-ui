@@ -47,7 +47,7 @@ func NewServer() *Server {
 
 // initRouter configures the subscription server's Gin engine, middleware,
 // templates and static assets and returns the ready-to-use engine.
-func (s *Server) initRouter() (*gin.Engine, error) {
+func (s *Server) initRouter(subEnable bool, faucetEnable bool) (*gin.Engine, error) {
 	// Always run in release mode for the subscription server
 	gin.DefaultWriter = io.Discard
 	gin.DefaultErrorWriter = io.Discard
@@ -60,8 +60,9 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 		return nil, err
 	}
 
-	if subDomain != "" {
-		engine.Use(middleware.DomainValidatorMiddleware(subDomain))
+	faucetDomain, err := s.settingService.GetFaucetDomain()
+	if err != nil {
+		return nil, err
 	}
 
 	LinksPath, err := s.settingService.GetSubPath()
@@ -239,11 +240,29 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 
 	g := engine.Group("/")
 
-	s.sub = NewSUBController(
-		g, LinksPath, JsonPath, ClashPath, subJsonEnable, subClashEnable, Encrypt, RemarkTemplate, SubUpdates,
-		SubJsonMux, SubJsonRules, SubJsonFinalMask, SubClashEnableRouting, SubClashRules, SubTitle, SubSupportUrl,
-		SubProfileUrl, SubAnnounce, SubEnableRouting, SubRoutingRules, SubHideSettings,
-		SubIncyEnableRouting, SubIncyRoutingRules)
+	if subEnable {
+		subRoutes := g
+		if subDomain != "" {
+			subRoutes = g.Group("", middleware.DomainValidatorMiddleware(subDomain))
+		}
+		s.sub = NewSUBController(
+			subRoutes, LinksPath, JsonPath, ClashPath, subJsonEnable, subClashEnable, Encrypt, RemarkTemplate, SubUpdates,
+			SubJsonMux, SubJsonRules, SubJsonFinalMask, SubClashEnableRouting, SubClashRules, SubTitle, SubSupportUrl,
+			SubProfileUrl, SubAnnounce, SubEnableRouting, SubRoutingRules, SubHideSettings,
+			SubIncyEnableRouting, SubIncyRoutingRules)
+	}
+
+	if faucetEnable {
+		faucetPath, err := s.settingService.GetFaucetPath()
+		if err != nil {
+			return nil, err
+		}
+		faucetRoutes := g
+		if faucetDomain != "" {
+			faucetRoutes = g.Group("", middleware.DomainValidatorMiddleware(faucetDomain))
+		}
+		NewFaucetController(faucetRoutes, faucetPath)
+	}
 
 	return engine, nil
 }
@@ -261,11 +280,15 @@ func (s *Server) Start() (err error) {
 	if err != nil {
 		return err
 	}
-	if !subEnable {
+	faucetEnable, err := s.settingService.GetFaucetEnable()
+	if err != nil {
+		return err
+	}
+	if !subEnable && !faucetEnable {
 		return nil
 	}
 
-	engine, err := s.initRouter()
+	engine, err := s.initRouter(subEnable, faucetEnable)
 	if err != nil {
 		return err
 	}

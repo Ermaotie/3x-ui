@@ -244,11 +244,19 @@ func (s *ClientService) AddInboundClient(inboundSvc *InboundService, data *model
 	return s.addInboundClient(inboundSvc, data, nil)
 }
 
+type addInboundClientOptions struct {
+	preserveEmptySubID bool
+}
+
 // addInboundClient is AddInboundClient with an optional precomputed email→subId
 // map. Bulk callers pass a single snapshot so the global getAllEmailSubIDs scan
 // runs once for the whole batch instead of once per target inbound; a nil map
 // makes it compute its own (the single-add path).
 func (s *ClientService) addInboundClient(inboundSvc *InboundService, data *model.Inbound, emailSubIDs map[string]string) (bool, error) {
+	return s.addInboundClientWithOptions(inboundSvc, data, emailSubIDs, addInboundClientOptions{})
+}
+
+func (s *ClientService) addInboundClientWithOptions(inboundSvc *InboundService, data *model.Inbound, emailSubIDs map[string]string, opts addInboundClientOptions) (bool, error) {
 	defer lockInbound(data.Id).Unlock()
 
 	clients, err := inboundSvc.GetClients(data)
@@ -271,7 +279,7 @@ func (s *ClientService) addInboundClient(inboundSvc *InboundService, data *model
 			}
 			cm["updated_at"] = nowTs
 			existingSub, _ := cm["subId"].(string)
-			if strings.TrimSpace(existingSub) == "" {
+			if strings.TrimSpace(existingSub) == "" && !opts.preserveEmptySubID {
 				cm["subId"] = random.NumLower(16)
 			}
 			interfaceClients[i] = cm

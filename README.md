@@ -34,6 +34,7 @@ Built as an enhanced fork of the original X-UI project, 3X-UI adds broader proto
 - **Multi-node support** — manage and scale across multiple servers from a single panel.
 - **Outbound & routing** — WARP, NordVPN, custom routing rules, load balancers, and outbound proxy chaining.
 - **Built-in subscription server** with multiple output formats and [custom page templates](docs/custom-subscription-templates.md).
+- **Traffic faucet** for public, time-limited client links with QR codes, MB quotas, optional Turnstile, and rate limits.
 - **Telegram bot** for remote monitoring and management.
 - **RESTful API** with in-panel Swagger documentation.
 - **Flexible storage** — SQLite (default) or PostgreSQL.
@@ -98,6 +99,7 @@ zero prompts, generating random credentials and writing them to
 
 - [Cloud-init user-data](deploy/cloud-init/) — unattended install on any cloud (Hetzner/AWS/DO/Vultr/GCP/Azure/Oracle)
 - [Hetzner Cloud notes](deploy/marketplace/hetzner/) — cloud-init deployment on Hetzner
+- [Repository package install](docs/deploy-from-repo.md) — build `x-ui-linux-$ARCH.tar.gz` from a checkout, install it directly, or install from a fork release with `XUI_REPO=OWNER/3x-ui`
 
 ## Supported Platforms
 
@@ -150,6 +152,9 @@ docker run -d --cap-add=NET_ADMIN --cap-add=NET_RAW ... ghcr.io/mhsanaei/3x-ui
 | `XUI_DB_TYPE` | Database backend: `sqlite` or `postgres` | `sqlite` |
 | `XUI_DB_DSN` | PostgreSQL connection string (when `XUI_DB_TYPE=postgres`) | — |
 | `XUI_DB_FOLDER` | Directory for the SQLite database file | `/etc/x-ui` |
+| `XUI_REPO` | GitHub repository used by `install.sh` for release and script downloads | `MHSanaei/3x-ui` |
+| `XUI_INSTALL_PACKAGE` | Local `x-ui-linux-$ARCH.tar.gz` package to install instead of downloading a release | — |
+| `XUI_NONINTERACTIVE` | Run the installer without prompts and write `/etc/x-ui/install-result.env` | `0` |
 | `XUI_DB_MAX_OPEN_CONNS` | Maximum open connections (PostgreSQL pool) | — |
 | `XUI_DB_MAX_IDLE_CONNS` | Maximum idle connections (PostgreSQL pool) | — |
 | `XUI_INIT_WEB_BASE_PATH` | The initial URI path for the web panel | `/` |

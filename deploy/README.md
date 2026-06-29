@@ -8,6 +8,7 @@ session secret). Works on amd64 and arm64.
 | --- | --- | --- |
 | [`cloud-init/`](cloud-init/) | Generic cloud-init user-data (unattended `install.sh`) | Any cloud, no image build |
 | [`marketplace/hetzner/`](marketplace/hetzner/) | Hetzner Cloud notes | Hetzner deployments |
+| [`package-release.sh`](package-release.sh) | Build a local `x-ui-linux-$ARCH.tar.gz` package | Testing or publishing a fork |
 | [`test/`](test/) | Container smoke test | Verifying the install path |
 
 ## How it works
@@ -29,3 +30,6 @@ secure random / default):
 `XUI_DB_TYPE` (`sqlite`|`postgres`), `XUI_DB_DSN`.
 
 The resulting credentials are written to `/etc/x-ui/install-result.env` (mode 600).
+
+For package build and direct install commands, see
+[`docs/deploy-from-repo.md`](../docs/deploy-from-repo.md).

@@ -70,4 +70,8 @@ type ClientCreatePayload struct {
 	InboundIds []int        `json:"inboundIds"`
 }
 
+type clientCreateOptions struct {
+	preserveEmptySubID bool
+}
+
 const sqlInChunk = 400

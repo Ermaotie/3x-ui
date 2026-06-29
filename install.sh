@@ -10,6 +10,7 @@ cur_dir=$(pwd)
 
 xui_folder="${XUI_MAIN_FOLDER:=/usr/local/x-ui}"
 xui_service="${XUI_SERVICE:=/etc/systemd/system}"
+xui_repo="${XUI_REPO:=MHSanaei/3x-ui}"
 
 # check root
 [[ $EUID -ne 0 ]] && echo -e "${red}Fatal error: ${plain} Please run this script with root privilege \n " && exit 1
@@ -1326,18 +1327,115 @@ setup_fail2ban() {
     return 0
 }
 
+systemd_env_file() {
+    case "${release}" in
+        arch | manjaro | parch) echo "/etc/conf.d/x-ui" ;;
+        fedora | amzn | virtuozzo | rhel | almalinux | rocky | ol | centos) echo "/etc/sysconfig/x-ui" ;;
+        *) echo "/etc/default/x-ui" ;;
+    esac
+}
+
+install_systemd_service() {
+    local env_file
+    env_file=$(systemd_env_file)
+    install -d -m 755 "${xui_service}"
+    cat > "${xui_service}/x-ui.service" << EOF
+[Unit]
+Description=x-ui Service
+After=network.target
+Wants=network.target
+
+[Service]
+EnvironmentFile=-${env_file}
+Environment="XUI_MAIN_FOLDER=${xui_folder}"
+Environment="XRAY_VMESS_AEAD_FORCED=false"
+Type=simple
+WorkingDirectory=${xui_folder}/
+ExecStart=${xui_folder}/x-ui
+ExecReload=/bin/kill -USR1 \$MAINPID
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    chown root:root "${xui_service}/x-ui.service" > /dev/null 2>&1
+    chmod 644 "${xui_service}/x-ui.service" > /dev/null 2>&1
+    systemctl daemon-reload
+    if ! systemctl enable --now x-ui; then
+        echo -e "${red}Failed to enable/start x-ui service.${plain}"
+        journalctl -u x-ui -n 40 --no-pager 2> /dev/null || true
+        exit 1
+    fi
+    if ! systemctl is-active --quiet x-ui; then
+        echo -e "${red}x-ui service was installed but is not running.${plain}"
+        journalctl -u x-ui -n 40 --no-pager 2> /dev/null || true
+        exit 1
+    fi
+}
+
+install_openrc_service() {
+    cat > /etc/init.d/x-ui << EOF
+#!/sbin/openrc-run
+
+command="${xui_folder}/x-ui"
+command_background=true
+pidfile="/run/x-ui.pid"
+description="x-ui Service"
+procname="x-ui"
+export XUI_MAIN_FOLDER="${xui_folder}"
+depend() {
+    need net
+}
+start_pre(){
+    cd "${xui_folder}"
+}
+reload() {
+  ebegin "Reloading \${RC_SVCNAME}"
+  kill -USR1 \$(cat \$pidfile)
+  eend \$?
+}
+EOF
+    chmod +x /etc/init.d/x-ui
+    rc-update add x-ui default
+    if ! rc-service x-ui start; then
+        echo -e "${red}Failed to start x-ui service.${plain}"
+        exit 1
+    fi
+}
+
 install_x-ui() {
-    cd ${xui_folder%/x-ui}/
+    local install_package="${XUI_INSTALL_PACKAGE:-}"
+    if [[ -z "${install_package}" && $# -gt 0 && -f "$1" ]]; then
+        install_package="$1"
+    fi
+    if [[ -n "${install_package}" && "${install_package}" != /* ]]; then
+        install_package="${cur_dir}/${install_package}"
+    fi
+
+    mkdir -p "${xui_folder%/x-ui}/"
+    cd "${xui_folder%/x-ui}/" || exit 1
 
     # Download resources
-    if [ $# == 0 ]; then
-        tag_version=$(curl -Ls --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 60 "https://api.github.com/repos/MHSanaei/3x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    if [[ -n "${install_package}" ]]; then
+        tag_version="local"
+        echo -e "Beginning to install x-ui from local package: ${install_package}"
+        local package_target="${xui_folder}-linux-$(arch).tar.gz"
+        if [[ "${install_package}" != "${package_target}" ]]; then
+            cp -f "${install_package}" "${package_target}"
+            if [[ $? -ne 0 ]]; then
+                echo -e "${red}Failed to read local package: ${install_package}${plain}"
+                exit 1
+            fi
+        fi
+    elif [ $# == 0 ]; then
+        tag_version=$(curl -Ls --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 60 "https://api.github.com/repos/${xui_repo}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         if [[ ! -n "$tag_version" ]]; then
             echo -e "${red}Failed to fetch x-ui version, it may be due to GitHub API restrictions, please try it later${plain}"
             exit 1
         fi
         echo -e "Got x-ui latest version: ${tag_version}, beginning the installation..."
-        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o ${xui_folder}-linux-$(arch).tar.gz https://github.com/MHSanaei/3x-ui/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz
+        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o "${xui_folder}-linux-$(arch).tar.gz" "https://github.com/${xui_repo}/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz"
         if [[ $? -ne 0 ]]; then
             echo -e "${red}Downloading x-ui failed, please be sure that your server can access GitHub ${plain}"
             exit 1
@@ -1360,20 +1458,14 @@ install_x-ui() {
             fi
         fi
 
-        url="https://github.com/MHSanaei/3x-ui/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz"
+        url="https://github.com/${xui_repo}/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz"
         echo -e "Beginning to install x-ui ${tag_version}"
-        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o ${xui_folder}-linux-$(arch).tar.gz ${url}
+        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o "${xui_folder}-linux-$(arch).tar.gz" "${url}"
         if [[ $? -ne 0 ]]; then
             echo -e "${red}Download x-ui ${tag_version} failed, please check if the version exists ${plain}"
             exit 1
         fi
     fi
-    curl -fLRo /usr/bin/x-ui-temp https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh
-    if [[ $? -ne 0 ]]; then
-        echo -e "${red}Failed to download x-ui.sh${plain}"
-        exit 1
-    fi
-
     # Stop x-ui service and remove old resources
     if [[ -e ${xui_folder}/ ]]; then
         if [[ $release == "alpine" ]]; then
@@ -1392,6 +1484,16 @@ install_x-ui() {
     # Extract resources and set permissions
     tar zxvf x-ui-linux-$(arch).tar.gz
     rm x-ui-linux-$(arch).tar.gz -f
+
+    if [[ -n "${install_package}" ]]; then
+        cp -f x-ui/x-ui.sh /usr/bin/x-ui-temp
+    else
+        curl -fLRo /usr/bin/x-ui-temp "https://raw.githubusercontent.com/${xui_repo}/main/x-ui.sh"
+    fi
+    if [[ $? -ne 0 ]]; then
+        echo -e "${red}Failed to prepare x-ui.sh${plain}"
+        exit 1
+    fi
 
     cd x-ui
     chmod +x x-ui
@@ -1434,91 +1536,10 @@ install_x-ui() {
     fi
 
     if [[ $release == "alpine" ]]; then
-        curl -fLRo /etc/init.d/x-ui https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.rc
-        if [[ $? -ne 0 ]]; then
-            echo -e "${red}Failed to download x-ui.rc${plain}"
-            exit 1
-        fi
-        chmod +x /etc/init.d/x-ui
-        rc-update add x-ui
-        rc-service x-ui start
+        install_openrc_service
     else
-        # Install systemd service file
-        service_installed=false
-
-        if [ -f "x-ui.service" ]; then
-            echo -e "${green}Found x-ui.service in extracted files, installing...${plain}"
-            cp -f x-ui.service ${xui_service}/ > /dev/null 2>&1
-            if [[ $? -eq 0 ]]; then
-                service_installed=true
-            fi
-        fi
-
-        if [ "$service_installed" = false ]; then
-            case "${release}" in
-                ubuntu | debian | armbian)
-                    if [ -f "x-ui.service.debian" ]; then
-                        echo -e "${green}Found x-ui.service.debian in extracted files, installing...${plain}"
-                        cp -f x-ui.service.debian ${xui_service}/x-ui.service > /dev/null 2>&1
-                        if [[ $? -eq 0 ]]; then
-                            service_installed=true
-                        fi
-                    fi
-                    ;;
-                arch | manjaro | parch)
-                    if [ -f "x-ui.service.arch" ]; then
-                        echo -e "${green}Found x-ui.service.arch in extracted files, installing...${plain}"
-                        cp -f x-ui.service.arch ${xui_service}/x-ui.service > /dev/null 2>&1
-                        if [[ $? -eq 0 ]]; then
-                            service_installed=true
-                        fi
-                    fi
-                    ;;
-                *)
-                    if [ -f "x-ui.service.rhel" ]; then
-                        echo -e "${green}Found x-ui.service.rhel in extracted files, installing...${plain}"
-                        cp -f x-ui.service.rhel ${xui_service}/x-ui.service > /dev/null 2>&1
-                        if [[ $? -eq 0 ]]; then
-                            service_installed=true
-                        fi
-                    fi
-                    ;;
-            esac
-        fi
-
-        # If service file not found in tar.gz, download from GitHub
-        if [ "$service_installed" = false ]; then
-            echo -e "${yellow}Service files not found in tar.gz, downloading from GitHub...${plain}"
-            case "${release}" in
-                ubuntu | debian | armbian)
-                    curl -fLRo ${xui_service}/x-ui.service https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.service.debian > /dev/null 2>&1
-                    ;;
-                arch | manjaro | parch)
-                    curl -fLRo ${xui_service}/x-ui.service https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.service.arch > /dev/null 2>&1
-                    ;;
-                *)
-                    curl -fLRo ${xui_service}/x-ui.service https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.service.rhel > /dev/null 2>&1
-                    ;;
-            esac
-
-            if [[ $? -ne 0 ]]; then
-                echo -e "${red}Failed to install x-ui.service from GitHub${plain}"
-                exit 1
-            fi
-            service_installed=true
-        fi
-
-        if [ "$service_installed" = true ]; then
-            echo -e "${green}Setting up systemd unit...${plain}"
-            chown root:root ${xui_service}/x-ui.service > /dev/null 2>&1
-            chmod 644 ${xui_service}/x-ui.service > /dev/null 2>&1
-            systemctl daemon-reload
-            systemctl enable x-ui
-            systemctl start x-ui
-        else
-            echo -e "${red}Failed to install x-ui.service file${plain}"
-            exit 1
-        fi
+        echo -e "${green}Setting up systemd unit...${plain}"
+        install_systemd_service
     fi
 
     # IP Limit relies on fail2ban; install + configure it now so the feature

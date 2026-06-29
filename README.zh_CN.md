@@ -34,6 +34,7 @@
 - **多节点支持** — 从单一面板管理并扩展到多台服务器。
 - **出站与路由** — WARP、NordVPN、自定义路由规则、负载均衡器和出站代理链。
 - **内置订阅服务器**，支持多种输出格式和[自定义页面模板](docs/custom-subscription-templates.md)。
+- **流量水龙头**，公开领取限时客户端链接，支持二维码、MB 流量额度、可选 Turnstile 和限流。
 - **Telegram 机器人**，用于远程监控和管理。
 - **RESTful API**，带有面板内置的 Swagger 文档。
 - **灵活的存储** — SQLite（默认）或 PostgreSQL。
@@ -98,6 +99,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.
 
 - [Cloud-init user-data](deploy/cloud-init/) — 在任意云平台上无人值守安装（Hetzner/AWS/DO/Vultr/GCP/Azure/Oracle）
 - [Hetzner Cloud 说明](deploy/marketplace/hetzner/) — 在 Hetzner 上基于 cloud-init 的部署
+- [仓库包安装](docs/deploy-from-repo.md) — 从源码构建 `x-ui-linux-$ARCH.tar.gz` 并直接安装，或通过 `XUI_REPO=OWNER/3x-ui` 从 fork 的 Release 安装
 
 ## 支持的平台
 
@@ -150,6 +152,9 @@ docker run -d --cap-add=NET_ADMIN --cap-add=NET_RAW ... ghcr.io/mhsanaei/3x-ui
 | `XUI_DB_TYPE` | 数据库后端：`sqlite` 或 `postgres` | `sqlite` |
 | `XUI_DB_DSN` | PostgreSQL 连接字符串（当 `XUI_DB_TYPE=postgres` 时） | — |
 | `XUI_DB_FOLDER` | SQLite 数据库文件所在目录 | `/etc/x-ui` |
+| `XUI_REPO` | `install.sh` 用于下载 Release 和脚本的 GitHub 仓库 | `MHSanaei/3x-ui` |
+| `XUI_INSTALL_PACKAGE` | 本地 `x-ui-linux-$ARCH.tar.gz` 安装包；设置后不下载 Release | — |
+| `XUI_NONINTERACTIVE` | 无提示运行安装器，并写入 `/etc/x-ui/install-result.env` | `0` |
 | `XUI_DB_MAX_OPEN_CONNS` | 最大打开连接数（PostgreSQL 连接池） | — |
 | `XUI_DB_MAX_IDLE_CONNS` | 最大空闲连接数（PostgreSQL 连接池） | — |
 | `XUI_INIT_WEB_BASE_PATH` | Web 面板的初始 URI 路径 | `/` |
