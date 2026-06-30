@@ -70,20 +70,28 @@
 
 ## 快速开始
 
+此 fork 分支建议直接从仓库构建并安装本地包：
+
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+git clone -b traffic-faucet https://github.com/Ermaotie/3x-ui.git
+cd 3x-ui
+./deploy/package-release.sh
+sudo env XUI_NONINTERACTIVE=1 XUI_SSL_MODE=none XUI_DB_TYPE=sqlite ./install.sh ./release/x-ui-linux-amd64.tar.gz
 ```
 
-若要安装特定版本，请在命令后附加对应的标签（例如 `v3.4.0`）：
+arm64 服务器请把包名改成 `x-ui-linux-arm64.tar.gz`。
+
+如果此 fork 已发布包含 `x-ui-linux-$ARCH.tar.gz` 的 GitHub Release，也可以从 Release 安装：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh) v3.4.0
+curl -Ls https://raw.githubusercontent.com/Ermaotie/3x-ui/traffic-faucet/install.sh -o /tmp/install.sh
+sudo env XUI_REPO=Ermaotie/3x-ui XUI_NONINTERACTIVE=1 XUI_SSL_MODE=none XUI_DB_TYPE=sqlite bash /tmp/install.sh
 ```
 
-若要安装滚动更新的 **dev** 版本（来自 `main` 的最新逐次提交预发布版本，而非稳定版本），请传入 `dev-latest`：
+若要安装 fork 的特定 Release 标签，请在命令后附加标签：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh) dev-latest
+sudo env XUI_REPO=Ermaotie/3x-ui XUI_NONINTERACTIVE=1 XUI_SSL_MODE=none XUI_DB_TYPE=sqlite bash /tmp/install.sh v3.4.0
 ```
 
 安装过程中会生成随机的用户名、密码和访问路径。安装完成后，运行 `x-ui` 打开管理菜单，您可以在其中启动/停止服务、查看或重置登录凭据、管理 SSL 证书等。

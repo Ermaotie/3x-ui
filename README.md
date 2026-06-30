@@ -70,20 +70,28 @@ Built as an enhanced fork of the original X-UI project, 3X-UI adds broader proto
 
 ## Quick Start
 
+For this fork branch, build and install the package from the repository:
+
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+git clone -b traffic-faucet https://github.com/Ermaotie/3x-ui.git
+cd 3x-ui
+./deploy/package-release.sh
+sudo env XUI_NONINTERACTIVE=1 XUI_SSL_MODE=none XUI_DB_TYPE=sqlite ./install.sh ./release/x-ui-linux-amd64.tar.gz
 ```
 
-To install a specific version, append its tag (e.g. `v3.4.0`):
+For arm64, replace the package name with `x-ui-linux-arm64.tar.gz`.
+
+If this fork has a GitHub Release containing `x-ui-linux-$ARCH.tar.gz`, install from that release with:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh) v3.4.0
+curl -Ls https://raw.githubusercontent.com/Ermaotie/3x-ui/traffic-faucet/install.sh -o /tmp/install.sh
+sudo env XUI_REPO=Ermaotie/3x-ui XUI_NONINTERACTIVE=1 XUI_SSL_MODE=none XUI_DB_TYPE=sqlite bash /tmp/install.sh
 ```
 
-To install the rolling **dev** build (latest per-commit pre-release from `main`, not a stable release), pass `dev-latest`:
+To install a specific fork release tag, append it:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh) dev-latest
+sudo env XUI_REPO=Ermaotie/3x-ui XUI_NONINTERACTIVE=1 XUI_SSL_MODE=none XUI_DB_TYPE=sqlite bash /tmp/install.sh v3.4.0
 ```
 
 During installation a random username, password, and access path are generated. After installation, run `x-ui` to open the management menu, where you can start/stop the service, view or reset your login credentials, manage SSL certificates, and more.
