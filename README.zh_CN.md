@@ -119,11 +119,13 @@ sudo env XUI_REPO=Ermaotie/3x-ui XUI_NONINTERACTIVE=1 XUI_SSL_MODE=none XUI_DB_T
 
 在 x-ui 中把内部服务绑定到本机：
 
-- 面板监听：`127.0.0.1`，面板端口例如 `2053`，使用随机面板路径。
-- 订阅/水龙头监听：`127.0.0.1`，订阅端口例如 `2096`，水龙头路径 `/index/`。
-- VLESS 入站：监听 `127.0.0.1`，端口 `10000`，传输 `WebSocket`，路径 `/cf-vless-random/`，安全 `none`，flow 留空。Cloudflare WebSocket 不要使用 `xtls-rprx-vision`。
+- 面板监听：`127.0.0.1`，面板端口使用脚本安装后的实际端口，使用随机面板路径。
+- 订阅/水龙头监听：`127.0.0.1`，订阅端口使用面板中配置的实际端口，水龙头路径 `/index/`。
+- VLESS 入站：监听 `127.0.0.1`，使用一个本地入站端口，传输 `WebSocket`，路径 `/cf-vless-random/`，安全 `none`，flow 留空。Cloudflare WebSocket 不要使用 `xtls-rprx-vision`。
 
 Cloudflare DNS 使用橙云代理的 `A` 记录，SSL/TLS 模式设为 `Full` 或 `Full (strict)`。服务器公网只让 Nginx/Caddy 监听 `443`；防火墙只需要开放 `80` 和 `443`。
+
+脚本安装后，从 `/etc/x-ui/install-result.env` 或 `x-ui settings` 读取实际面板配置，再替换下面的 `<panel-port>`、`<sub-port>` 和 `<vless-ws-port>`。水龙头新增客户端会复用同一个入站和 WebSocket 路径，不需要修改 Nginx。只有修改面板路径、水龙头路径、订阅端口、WebSocket 入站路径或端口时，才需要更新 Nginx。
 
 最小 Nginx 示例：
 
@@ -142,7 +144,7 @@ server {
     ssl_certificate_key /etc/ssl/example.com/private.key;
 
     location /<panel-path>/ {
-        proxy_pass http://127.0.0.1:2053;
+        proxy_pass http://127.0.0.1:<panel-port>;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -150,7 +152,7 @@ server {
     }
 
     location /index/ {
-        proxy_pass http://127.0.0.1:2096;
+        proxy_pass http://127.0.0.1:<sub-port>;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -158,7 +160,7 @@ server {
     }
 
     location /cf-vless-random/ {
-        proxy_pass http://127.0.0.1:10000;
+        proxy_pass http://127.0.0.1:<vless-ws-port>;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";

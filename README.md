@@ -119,11 +119,13 @@ Use one proxied Cloudflare domain and split traffic by path:
 
 In x-ui, bind private services to localhost:
 
-- Panel listen: `127.0.0.1`, panel port: for example `2053`, random panel path.
-- Subscription/Faucet listen: `127.0.0.1`, subscription port: for example `2096`, faucet path: `/index/`.
-- VLESS inbound: listen `127.0.0.1`, port `10000`, transport `WebSocket`, path `/cf-vless-random/`, security `none`, flow empty. Do not use `xtls-rprx-vision` for Cloudflare WebSocket.
+- Panel listen: `127.0.0.1`, panel port: use the actual installed panel port, random panel path.
+- Subscription/Faucet listen: `127.0.0.1`, subscription port: use the configured subscription port, faucet path: `/index/`.
+- VLESS inbound: listen `127.0.0.1`, use one local inbound port, transport `WebSocket`, path `/cf-vless-random/`, security `none`, flow empty. Do not use `xtls-rprx-vision` for Cloudflare WebSocket.
 
 Configure Cloudflare DNS as an orange-cloud proxied `A` record and set SSL/TLS mode to `Full` or `Full (strict)`. Put Nginx/Caddy on public port `443`; only `80` and `443` need to be open on the firewall.
+
+After script install, read the generated panel values from `/etc/x-ui/install-result.env` or from `x-ui settings`, then replace `<panel-port>`, `<sub-port>`, and `<vless-ws-port>` below. New faucet clients reuse the same inbound and WebSocket path; adding clients does not require changing Nginx. Update Nginx only when you change the panel path, faucet path, subscription port, or WebSocket inbound path/port.
 
 Minimal Nginx example:
 
@@ -142,7 +144,7 @@ server {
     ssl_certificate_key /etc/ssl/example.com/private.key;
 
     location /<panel-path>/ {
-        proxy_pass http://127.0.0.1:2053;
+        proxy_pass http://127.0.0.1:<panel-port>;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -150,7 +152,7 @@ server {
     }
 
     location /index/ {
-        proxy_pass http://127.0.0.1:2096;
+        proxy_pass http://127.0.0.1:<sub-port>;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -158,7 +160,7 @@ server {
     }
 
     location /cf-vless-random/ {
-        proxy_pass http://127.0.0.1:10000;
+        proxy_pass http://127.0.0.1:<vless-ws-port>;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
