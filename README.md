@@ -109,6 +109,71 @@ zero prompts, generating random credentials and writing them to
 - [Hetzner Cloud notes](deploy/marketplace/hetzner/) — cloud-init deployment on Hetzner
 - [Repository package install](docs/deploy-from-repo.md) — build `x-ui-linux-$ARCH.tar.gz` from a checkout, install it directly, or install from a fork release with `XUI_REPO=OWNER/3x-ui`
 
+### One domain with Cloudflare WebSocket
+
+Use one proxied Cloudflare domain and split traffic by path:
+
+- Panel: `https://example.com/<panel-path>/`
+- Faucet or subscription listener: `https://example.com/index/`
+- VLESS WebSocket proxy: `wss://example.com/cf-vless-random/`
+
+In x-ui, bind private services to localhost:
+
+- Panel listen: `127.0.0.1`, panel port: for example `2053`, random panel path.
+- Subscription/Faucet listen: `127.0.0.1`, subscription port: for example `2096`, faucet path: `/index/`.
+- VLESS inbound: listen `127.0.0.1`, port `10000`, transport `WebSocket`, path `/cf-vless-random/`, security `none`, flow empty. Do not use `xtls-rprx-vision` for Cloudflare WebSocket.
+
+Configure Cloudflare DNS as an orange-cloud proxied `A` record and set SSL/TLS mode to `Full` or `Full (strict)`. Put Nginx/Caddy on public port `443`; only `80` and `443` need to be open on the firewall.
+
+Minimal Nginx example:
+
+```nginx
+server {
+    listen 80;
+    server_name example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name example.com;
+
+    ssl_certificate /etc/ssl/example.com/fullchain.pem;
+    ssl_certificate_key /etc/ssl/example.com/private.key;
+
+    location /<panel-path>/ {
+        proxy_pass http://127.0.0.1:2053;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /index/ {
+        proxy_pass http://127.0.0.1:2096;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /cf-vless-random/ {
+        proxy_pass http://127.0.0.1:10000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+
+    location / {
+        return 404;
+    }
+}
+```
+
+If the internal x-ui panel or subscription listener is configured with its own certificate, change the matching `proxy_pass` to `https://127.0.0.1:<port>` and add `proxy_ssl_verify off;`.
+
 ## Supported Platforms
 
 **Operating systems:** Ubuntu, Debian, Armbian, Fedora, CentOS, RHEL, AlmaLinux, Rocky Linux, Oracle Linux, Amazon Linux, Virtuozzo, Arch, Manjaro, Parch, openSUSE (Tumbleweed / Leap), Alpine, and Windows.

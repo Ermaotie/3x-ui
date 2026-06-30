@@ -109,6 +109,71 @@ sudo env XUI_REPO=Ermaotie/3x-ui XUI_NONINTERACTIVE=1 XUI_SSL_MODE=none XUI_DB_T
 - [Hetzner Cloud 说明](deploy/marketplace/hetzner/) — 在 Hetzner 上基于 cloud-init 的部署
 - [仓库包安装](docs/deploy-from-repo.md) — 从源码构建 `x-ui-linux-$ARCH.tar.gz` 并直接安装，或通过 `XUI_REPO=OWNER/3x-ui` 从 fork 的 Release 安装
 
+### Cloudflare WebSocket 同域名部署
+
+使用一个 Cloudflare 橙云域名，按路径分流：
+
+- 面板：`https://example.com/<panel-path>/`
+- 水龙头或订阅监听：`https://example.com/index/`
+- VLESS WebSocket 代理：`wss://example.com/cf-vless-random/`
+
+在 x-ui 中把内部服务绑定到本机：
+
+- 面板监听：`127.0.0.1`，面板端口例如 `2053`，使用随机面板路径。
+- 订阅/水龙头监听：`127.0.0.1`，订阅端口例如 `2096`，水龙头路径 `/index/`。
+- VLESS 入站：监听 `127.0.0.1`，端口 `10000`，传输 `WebSocket`，路径 `/cf-vless-random/`，安全 `none`，flow 留空。Cloudflare WebSocket 不要使用 `xtls-rprx-vision`。
+
+Cloudflare DNS 使用橙云代理的 `A` 记录，SSL/TLS 模式设为 `Full` 或 `Full (strict)`。服务器公网只让 Nginx/Caddy 监听 `443`；防火墙只需要开放 `80` 和 `443`。
+
+最小 Nginx 示例：
+
+```nginx
+server {
+    listen 80;
+    server_name example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name example.com;
+
+    ssl_certificate /etc/ssl/example.com/fullchain.pem;
+    ssl_certificate_key /etc/ssl/example.com/private.key;
+
+    location /<panel-path>/ {
+        proxy_pass http://127.0.0.1:2053;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /index/ {
+        proxy_pass http://127.0.0.1:2096;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /cf-vless-random/ {
+        proxy_pass http://127.0.0.1:10000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+
+    location / {
+        return 404;
+    }
+}
+```
+
+如果 x-ui 面板或订阅监听自身已经配置证书，把对应的 `proxy_pass` 改成 `https://127.0.0.1:<port>`，并添加 `proxy_ssl_verify off;`。
+
 ## 支持的平台
 
 **操作系统：** Ubuntu、Debian、Armbian、Fedora、CentOS、RHEL、AlmaLinux、Rocky Linux、Oracle Linux、Amazon Linux、Virtuozzo、Arch、Manjaro、Parch、openSUSE (Tumbleweed / Leap)、Alpine 和 Windows。
